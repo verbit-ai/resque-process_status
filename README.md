@@ -1,8 +1,8 @@
 # Resque::ProcessStatus
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/resque/process_status`. To experiment with that code, run `bin/console` for an interactive prompt.
+Plugin to track status of resque workers into redis.
 
-TODO: Delete this and the text above, and describe your gem
+NOTE: Every worker which included this plugin should to have one argument which include key `PROCESS_ID`. Also every instance should to implement `process_id`, reader for this `PROCESS_ID`
 
 ## Installation
 
@@ -22,7 +22,18 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+Just include plugin to your desired worker:
+
+```ruby
+class WorkerExample
+  include Resque::Plugins::ProcessStatus
+end
+```
+
+## Known issues
+
+When worker fails plugin rewrite new `start_at` time and new `perform_at` time with new values.
+Plugin does not have opportunity to store multiple `start_at` and `perform_at` times, in case when worker fails.
 
 ## Development
 
