@@ -16,6 +16,13 @@ module Resque
       class << self
         def included(base)
           base.extend ClassMethods
+
+          # NOTE: this callback will be defined if workers extends Resque::Plugins::Retry
+          if base.respond_to?(:try_again_callback)
+            base.try_again_callback { |_exception, vars|
+              on_retry_track_retries(vars.fetch('PROCESS_ID'))
+            }
+          end
         end
       end
 
@@ -27,6 +34,8 @@ module Resque
 
       # Callbacks and helper methods for a workers
       module ClassMethods
+        ### Callbacks
+
         def after_enqueue_track_status(vars)
           set_status(vars.fetch('PROCESS_ID'),
                      vars: vars, class: self.to_s, start_at: Time.now.to_s, status: :queued)
@@ -36,6 +45,14 @@ module Resque
           set_status(vars.fetch('PROCESS_ID'), perform_at: Time.now.to_s, status: :working)
         end
 
+        # NOTE: will be called before the on_failure callback
+        def on_retry_track_retries(process_id)
+          details = describe(process_id)
+          retry_item = details.slice(:start_at, :perform_at).merge(failed_at: Time.now.to_s)
+
+          set_status(process_id, retries: details.fetch(:retries, []).push(retry_item))
+        end
+
         def on_failure_track_status(_e, vars)
           set_status(vars.fetch('PROCESS_ID'), failed_at: Time.now.to_s, status: :failed)
         end
@@ -43,6 +60,8 @@ module Resque
         def after_perform_track_status(vars)
           set_status(vars.fetch('PROCESS_ID'), end_at: Time.now.to_s, status: :completed)
         end
+
+        ### Helper methods
 
         def set_status(process_id, **args)
           Resque.redis.setex(REDIS_KEY % {process_id: process_id},
