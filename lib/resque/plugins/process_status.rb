@@ -38,17 +38,17 @@ module Resque
 
         def after_enqueue_track_status(vars)
           set_status(vars.fetch('PROCESS_ID'),
-                     vars: vars, class: self.to_s, start_at: Time.now.to_s, status: :queued)
+                     vars: vars, class: self.to_s, created_at: Time.now.to_s, status: :queued)
         end
 
         def before_perform_track_status(vars)
-          set_status(vars.fetch('PROCESS_ID'), perform_at: Time.now.to_s, status: :working)
+          set_status(vars.fetch('PROCESS_ID'), started_at: Time.now.to_s, status: :working)
         end
 
         # NOTE: will be called before the on_failure callback
         def on_retry_track_retries(process_id)
           details = describe(process_id)
-          retry_item = details.slice(:start_at, :perform_at).merge(failed_at: Time.now.to_s)
+          retry_item = details.slice(:created_at, :started_at).merge(failed_at: Time.now.to_s)
 
           set_status(process_id, retries: details.fetch(:retries, []).push(retry_item))
         end
@@ -58,7 +58,7 @@ module Resque
         end
 
         def after_perform_track_status(vars)
-          set_status(vars.fetch('PROCESS_ID'), end_at: Time.now.to_s, status: :completed)
+          set_status(vars.fetch('PROCESS_ID'), stopped_at: Time.now.to_s, status: :completed)
         end
 
         ### Helper methods
