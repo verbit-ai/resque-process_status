@@ -12,6 +12,7 @@ module Resque
     # Also every instance should to implement "process_id", reader for this "PROCESS_ID"
     module ProcessStatus
       REDIS_KEY = 'ecs_process:status:%{process_id}'
+      RETRY_ITEM_FIELDS = %i[created_at started_at].freeze
 
       class << self
         def included(base)
@@ -48,7 +49,7 @@ module Resque
         # NOTE: will be called before the on_failure callback
         def on_retry_track_retries(process_id)
           details = describe(process_id)
-          retry_item = details.slice(:created_at, :started_at).merge(failed_at: Time.now.to_s)
+          retry_item = details.slice(*self::RETRY_ITEM_FIELDS).merge(failed_at: Time.now.to_s)
 
           set_status(process_id, retries: details.fetch(:retries, []).push(retry_item))
         end
